@@ -55,6 +55,13 @@ def predict(model, test_loader, device):
             # CPU로 이동 및 numpy 변환
             preds = outputs.cpu().numpy()
             
+            # 예측값 검증 (NaN, Inf 체크)
+            if np.isnan(preds).any() or np.isinf(preds).any():
+                print(f"경고: 예측값에 NaN 또는 Inf가 포함되어 있습니다. 기본값으로 대체합니다.")
+                preds = np.nan_to_num(preds, nan=52.5, posinf=105.0, neginf=0.0)
+                # y 좌표도 처리
+                preds[:, 1] = np.clip(preds[:, 1], 0, 68)
+            
             predictions.extend(preds)
             game_episodes.extend(episodes)
     
@@ -121,14 +128,19 @@ def main():
     submission_df = submission_df.reindex(sample_submission['game_episode'])
     submission_df = submission_df.reset_index()
     
-    # 빈 값 처리 (경기장 중앙 좌표로 채움: 105/2=52.5, 68/2=34.0)
-    # 또는 마지막 패스의 시작 좌표를 사용할 수도 있음
+    # 빈 값 처리
     empty_mask = submission_df['end_x'].isna() | submission_df['end_y'].isna()
     if empty_mask.sum() > 0:
         print(f"\n빈 값 {empty_mask.sum()}개를 기본값으로 채웁니다.")
-        # 경기장 중앙 좌표 사용
+        # 경기장 중앙 좌표 사용 (더 나은 방법: 마지막 패스의 시작 좌표 사용 가능)
         submission_df.loc[empty_mask, 'end_x'] = 52.5
         submission_df.loc[empty_mask, 'end_y'] = 34.0
+    
+    # 최종 검증: 모든 값이 유효한지 확인
+    assert not submission_df['end_x'].isna().any(), "end_x에 NaN이 남아있습니다!"
+    assert not submission_df['end_y'].isna().any(), "end_y에 NaN이 남아있습니다!"
+    assert (submission_df['end_x'] >= 0).all() and (submission_df['end_x'] <= 105).all(), "end_x가 범위를 벗어났습니다!"
+    assert (submission_df['end_y'] >= 0).all() and (submission_df['end_y'] <= 68).all(), "end_y가 범위를 벗어났습니다!"
     
     # 제출 파일 저장
     output_path = os.path.join(SUBMISSION_DIR, "submission.csv")

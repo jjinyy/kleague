@@ -87,8 +87,18 @@ class PassPredictor(nn.Module):
             mask = mask.unsqueeze(-1)  # (batch_size, seq_len, 1)
             lstm_out = lstm_out * mask
         
-        # 어텐션 적용
-        attn_out, attn_weights = self.attention(lstm_out, lstm_out, lstm_out)
+        # 어텐션 적용 (마스크 전달)
+        if mask is not None:
+            # MultiheadAttention은 key_padding_mask를 사용
+            # mask가 0인 부분(패딩)을 True로 변환
+            attn_mask = (1 - mask.squeeze(-1)).bool()  # (batch_size, seq_len)
+        else:
+            attn_mask = None
+        
+        attn_out, attn_weights = self.attention(
+            lstm_out, lstm_out, lstm_out,
+            key_padding_mask=attn_mask
+        )
         
         # 마지막 타임스텝 사용 (또는 평균 풀링)
         if mask is not None:

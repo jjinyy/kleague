@@ -65,6 +65,8 @@ def main():
     # 학습 루프
     best_val_loss = float('inf')
     patience_counter = 0
+    train_losses = []
+    val_losses = []
     
     print("\n학습 시작...")
     for epoch in range(1, config.num_epochs + 1):
@@ -83,6 +85,10 @@ def main():
         
         # 학습률 스케줄러 업데이트
         scheduler.step(val_loss)
+        
+        # 학습 히스토리 저장
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
         
         print(f"\nEpoch {epoch} 결과:")
         print(f"  Train Loss: {train_loss:.4f}, Train Distance: {train_dist:.4f}")

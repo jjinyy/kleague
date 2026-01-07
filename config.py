@@ -61,4 +61,7 @@ class ModelConfig:
     # 기타
     device = "cuda"  # "cuda" or "cpu"
     seed = 42
+    
+    # 로깅
+    verbose = True  # 상세 로그 출력 여부
 
