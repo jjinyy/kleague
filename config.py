@@ -1,0 +1,63 @@
+# -*- coding: utf-8 -*-
+"""
+설정 파일
+"""
+import os
+
+# 데이터 경로
+DATA_DIR = "./open_track1"  # 사용자가 open__track1에 데이터를 넣었다고 했지만 실제로는 open_track1
+TRAIN_DATA_PATH = os.path.join(DATA_DIR, "train.csv")
+TEST_DATA_PATH = os.path.join(DATA_DIR, "test.csv")
+SAMPLE_SUBMISSION_PATH = os.path.join(DATA_DIR, "sample_submission.csv")
+MATCH_INFO_PATH = os.path.join(DATA_DIR, "match_info.csv")
+
+# 출력 경로
+OUTPUT_DIR = "./output"
+MODEL_DIR = os.path.join(OUTPUT_DIR, "models")
+SUBMISSION_DIR = os.path.join(OUTPUT_DIR, "submissions")
+LOG_DIR = os.path.join(OUTPUT_DIR, "logs")
+
+# 디렉토리 생성
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(MODEL_DIR, exist_ok=True)
+os.makedirs(SUBMISSION_DIR, exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# 모델 하이퍼파라미터
+class ModelConfig:
+    # 데이터 경로
+    DATA_DIR = DATA_DIR
+    TRAIN_DATA_PATH = TRAIN_DATA_PATH
+    TEST_DATA_PATH = TEST_DATA_PATH
+    SAMPLE_SUBMISSION_PATH = SAMPLE_SUBMISSION_PATH
+    MATCH_INFO_PATH = MATCH_INFO_PATH
+    
+    # 출력 경로
+    OUTPUT_DIR = OUTPUT_DIR
+    MODEL_DIR = MODEL_DIR
+    SUBMISSION_DIR = SUBMISSION_DIR
+    LOG_DIR = LOG_DIR
+    
+    # 시퀀스 모델 설정
+    hidden_dim = 256
+    num_layers = 3
+    dropout = 0.3
+    bidirectional = True
+    
+    # 입력 피처 설정
+    feature_dim = 20  # 피처 차원 (추후 조정)
+    output_dim = 2  # end_x, end_y
+    
+    # 학습 설정
+    batch_size = 32
+    learning_rate = 0.001
+    num_epochs = 50
+    early_stopping_patience = 10
+    
+    # 시퀀스 길이
+    max_sequence_length = 100  # 최대 시퀀스 길이
+    
+    # 기타
+    device = "cuda"  # "cuda" or "cpu"
+    seed = 42
+
