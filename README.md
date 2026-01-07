@@ -106,6 +106,21 @@ python inference.py
 - 학습과 추론 코드는 분리되어 있습니다.
 - 모델 가중치 파일은 필수로 포함되어야 합니다.
 
+## Git 인코딩 설정
+
+Windows에서 한글이 깨질 경우 다음 설정을 적용하세요:
+
+```bash
+git config --global core.quotepath false
+git config --global i18n.commitencoding utf-8
+git config --global i18n.logoutputencoding utf-8
+```
+
+또는 Git Bash에서:
+```bash
+export LANG=ko_KR.UTF-8
+```
+
 ## 라이선스
 
 본 프로젝트는 데이콘 경진대회 참가를 위한 코드입니다.
