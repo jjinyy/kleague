@@ -38,16 +38,35 @@ class PassPredictor(nn.Module):
             batch_first=True
         )
         
-        # 출력 레이어
+        # 출력 레이어 (Layer Normalization 추가로 개선)
         self.fc_layers = nn.Sequential(
             nn.Linear(lstm_output_dim, config.hidden_dim),
+            nn.LayerNorm(config.hidden_dim),  # Layer Normalization 추가
             nn.ReLU(),
             nn.Dropout(config.dropout),
             nn.Linear(config.hidden_dim, config.hidden_dim // 2),
+            nn.LayerNorm(config.hidden_dim // 2),  # Layer Normalization 추가
             nn.ReLU(),
             nn.Dropout(config.dropout),
             nn.Linear(config.hidden_dim // 2, config.output_dim)  # end_x, end_y
         )
+        
+        # 가중치 초기화
+        self._initialize_weights()
+    
+    def _initialize_weights(self):
+        """가중치 초기화"""
+        for module in self.modules():
+            if isinstance(module, nn.Linear):
+                nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0)
+            elif isinstance(module, nn.LSTM):
+                for name, param in module.named_parameters():
+                    if 'weight' in name:
+                        nn.init.xavier_uniform_(param)
+                    elif 'bias' in name:
+                        nn.init.constant_(param, 0)
         
     def forward(self, x, mask=None):
         """

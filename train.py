@@ -55,8 +55,9 @@ def main():
     print(f"모델 파라미터 수: {sum(p.numel() for p in model.parameters()):,}")
     
     # Loss 함수 및 Optimizer
-    criterion = nn.MSELoss()  # Mean Squared Error
-    optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
+    # Huber Loss 사용 (outlier에 더 robust)
+    criterion = nn.HuberLoss(delta=1.0)  # MSE 대신 Huber Loss 사용
+    optimizer = optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=1e-5)
     scheduler = ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=5, verbose=True
     )

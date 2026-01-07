@@ -83,6 +83,10 @@ python inference.py
 2. **맥락 정보 활용**: 선수 배치, 시간, 액션 결과 등 다양한 피처 활용
 3. **어텐션 메커니즘**: 중요한 패스에 더 많은 가중치 부여
 4. **Early Stopping**: 과적합 방지
+5. **Layer Normalization**: 학습 안정성 향상
+6. **Gradient Clipping**: Gradient explosion 방지
+7. **Huber Loss**: Outlier에 robust한 손실 함수
+8. **가중치 초기화**: Xavier 초기화로 학습 안정성 향상
 
 ## 하이퍼파라미터 설정
 

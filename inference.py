@@ -23,11 +23,18 @@ def load_model(model_path, config, device):
     # 또는 Transformer 모델 사용 시:
     # model = TransformerPassPredictor(config).to(device)
     
-    checkpoint = torch.load(model_path, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.eval()
+    try:
+        checkpoint = torch.load(model_path, map_location=device, weights_only=False)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        model.eval()
+        print(f"모델 로드 완료: {model_path}")
+        if 'epoch' in checkpoint:
+            print(f"  학습된 에폭: {checkpoint['epoch']}")
+            print(f"  검증 Loss: {checkpoint.get('loss', 'N/A'):.4f}")
+    except Exception as e:
+        print(f"모델 로드 중 오류 발생: {e}")
+        raise
     
-    print(f"모델 로드 완료: {model_path}")
     return model
 
 

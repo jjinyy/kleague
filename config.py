@@ -53,6 +53,7 @@ class ModelConfig:
     learning_rate = 0.001
     num_epochs = 50
     early_stopping_patience = 10
+    max_grad_norm = 1.0  # Gradient clipping
     
     # 시퀀스 길이
     max_sequence_length = 100  # 최대 시퀀스 길이

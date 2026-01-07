@@ -21,6 +21,9 @@ def train_epoch(model, train_loader, criterion, optimizer, device, config):
     total_distance = 0.0
     num_batches = 0
     
+    # Gradient clipping을 위한 max_norm 설정
+    max_grad_norm = getattr(config, 'max_grad_norm', 1.0)
+    
     pbar = tqdm(train_loader, desc="Training")
     for batch in pbar:
         features = batch['features'].to(device)
@@ -36,6 +39,10 @@ def train_epoch(model, train_loader, criterion, optimizer, device, config):
         
         # Backward pass
         loss.backward()
+        
+        # Gradient clipping (gradient explosion 방지)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+        
         optimizer.step()
         
         # 통계

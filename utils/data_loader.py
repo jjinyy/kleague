@@ -154,7 +154,17 @@ class PassSequenceDataset(Dataset):
             normalized_end_x = end_x / 105.0
             normalized_end_y = end_y / 68.0
             
-            # 피처 벡터 구성
+            # 추가 통계 피처 계산
+            # 시퀀스의 평균 위치 (맥락 정보)
+            if len(features_list) > 0:
+                prev_features = np.array(features_list)
+                avg_x = prev_features[:, 0].mean() if len(prev_features) > 0 else normalized_start_x
+                avg_y = prev_features[:, 1].mean() if len(prev_features) > 0 else normalized_start_y
+            else:
+                avg_x = normalized_start_x
+                avg_y = normalized_start_y
+            
+            # 피처 벡터 구성 (개선된 버전)
             feature = np.array([
                 normalized_start_x,
                 normalized_start_y,
@@ -163,7 +173,7 @@ class PassSequenceDataset(Dataset):
                 pass_distance / 105.0,  # 정규화된 거리
                 pass_angle,
                 time_seconds / 3600.0,  # 정규화된 시간 (경기 시간 기준)
-                time_delta,
+                time_delta / 10.0,  # 정규화된 시간 델타
                 result_successful,
                 is_home,
                 continuity / 105.0,
