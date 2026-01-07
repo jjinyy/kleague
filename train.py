@@ -5,7 +5,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
 import numpy as np
 import random
 import os
@@ -57,9 +57,14 @@ def main():
     # Loss 함수 및 Optimizer
     # Huber Loss 사용 (outlier에 더 robust)
     criterion = nn.HuberLoss(delta=1.0)  # MSE 대신 Huber Loss 사용
-    optimizer = optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=1e-5)
-    scheduler = ReduceLROnPlateau(
+    optimizer = optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=1e-4)
+    
+    # Learning rate scheduler (Cosine Annealing + ReduceLROnPlateau 조합)
+    scheduler_plateau = ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=5, verbose=True
+    )
+    scheduler_cosine = CosineAnnealingLR(
+        optimizer, T_max=config.num_epochs, eta_min=config.learning_rate * 0.01
     )
     
     # 학습 루프
@@ -83,8 +88,16 @@ def main():
             model, val_loader, criterion, device, config
         )
         
+        # Learning rate warmup
+        if epoch <= config.warmup_epochs:
+            warmup_factor = epoch / config.warmup_epochs
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = config.learning_rate * warmup_factor
+        
         # 학습률 스케줄러 업데이트
-        scheduler.step(val_loss)
+        scheduler_plateau.step(val_loss)
+        if epoch > config.warmup_epochs:
+            scheduler_cosine.step()
         
         # 학습 히스토리 저장
         train_losses.append(train_loss)

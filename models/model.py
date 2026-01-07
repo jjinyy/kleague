@@ -15,7 +15,7 @@ class PassPredictor(nn.Module):
         self.config = config
         
         # 입력 피처 차원 (utils/data_loader.py의 _extract_features에서 정의)
-        self.input_dim = 20
+        self.input_dim = 30  # 피처 강화로 인해 30개로 증가
         
         # LSTM 레이어
         self.lstm = nn.LSTM(
@@ -38,18 +38,20 @@ class PassPredictor(nn.Module):
             batch_first=True
         )
         
-        # 출력 레이어 (Layer Normalization 추가로 개선)
-        self.fc_layers = nn.Sequential(
-            nn.Linear(lstm_output_dim, config.hidden_dim),
-            nn.LayerNorm(config.hidden_dim),  # Layer Normalization 추가
-            nn.ReLU(),
-            nn.Dropout(config.dropout),
-            nn.Linear(config.hidden_dim, config.hidden_dim // 2),
-            nn.LayerNorm(config.hidden_dim // 2),  # Layer Normalization 추가
-            nn.ReLU(),
-            nn.Dropout(config.dropout),
-            nn.Linear(config.hidden_dim // 2, config.output_dim)  # end_x, end_y
-        )
+        # 출력 레이어 (Residual connection과 Batch Normalization 추가)
+        self.fc1 = nn.Linear(lstm_output_dim, config.hidden_dim)
+        self.bn1 = nn.BatchNorm1d(config.hidden_dim)
+        self.dropout1 = nn.Dropout(config.dropout)
+        
+        self.fc2 = nn.Linear(config.hidden_dim, config.hidden_dim)
+        self.bn2 = nn.BatchNorm1d(config.hidden_dim)
+        self.dropout2 = nn.Dropout(config.dropout)
+        
+        self.fc3 = nn.Linear(config.hidden_dim, config.hidden_dim // 2)
+        self.bn3 = nn.BatchNorm1d(config.hidden_dim // 2)
+        self.dropout3 = nn.Dropout(config.dropout)
+        
+        self.fc4 = nn.Linear(config.hidden_dim // 2, config.output_dim)
         
         # 가중치 초기화
         self._initialize_weights()
@@ -67,6 +69,9 @@ class PassPredictor(nn.Module):
                         nn.init.xavier_uniform_(param)
                     elif 'bias' in name:
                         nn.init.constant_(param, 0)
+            elif isinstance(module, nn.BatchNorm1d):
+                nn.init.constant_(module.weight, 1)
+                nn.init.constant_(module.bias, 0)
         
     def forward(self, x, mask=None):
         """
@@ -110,8 +115,26 @@ class PassPredictor(nn.Module):
             # 마지막 타임스텝 사용
             pooled = attn_out[:, -1, :]
         
-        # 최종 출력
-        output = self.fc_layers(pooled)
+        # 최종 출력 (Residual connection 포함)
+        x = self.fc1(pooled)
+        x = self.bn1(x)
+        x = F.relu(x)
+        x = self.dropout1(x)
+        
+        # Residual connection (첫 번째 레이어)
+        residual = x
+        x = self.fc2(x)
+        x = self.bn2(x)
+        x = F.relu(x)
+        x = self.dropout2(x)
+        x = x + residual  # Residual connection
+        
+        x = self.fc3(x)
+        x = self.bn3(x)
+        x = F.relu(x)
+        x = self.dropout3(x)
+        
+        output = self.fc4(x)
         
         return output
 
@@ -122,7 +145,7 @@ class TransformerPassPredictor(nn.Module):
     def __init__(self, config):
         super(TransformerPassPredictor, self).__init__()
         self.config = config
-        self.input_dim = 20
+        self.input_dim = 30  # 피처 강화로 30개로 증가
         
         # 입력 임베딩
         self.input_projection = nn.Linear(self.input_dim, config.hidden_dim)

@@ -83,17 +83,39 @@ class PassSequenceDataset(Dataset):
     
     def _extract_features(self, sequence: pd.DataFrame, full_episode: pd.DataFrame) -> np.ndarray:
         """
-        시퀀스에서 피처 추출
+        시퀀스에서 피처 추출 (개선된 버전)
         
         Args:
             sequence: 패스 시퀀스 DataFrame
-            full_episode: 전체 에피소드 DataFrame (현재는 사용하지 않음)
+            full_episode: 전체 에피소드 DataFrame
         
         Returns:
             피처 배열 (n_features, feature_dim)
         """
-        """시퀀스에서 피처 추출"""
         features_list = []
+        
+        # 시퀀스 전체 통계 계산 (맥락 정보)
+        valid_passes = sequence[
+            (~sequence['start_x'].isna()) & 
+            (~sequence['start_y'].isna()) & 
+            (~sequence['end_x'].isna()) & 
+            (~sequence['end_y'].isna())
+        ]
+        
+        if len(valid_passes) > 0:
+            seq_mean_x = valid_passes['start_x'].mean()
+            seq_mean_y = valid_passes['start_y'].mean()
+            seq_std_x = valid_passes['start_x'].std() if len(valid_passes) > 1 else 0.0
+            seq_std_y = valid_passes['start_y'].std() if len(valid_passes) > 1 else 0.0
+            seq_max_x = valid_passes['start_x'].max()
+            seq_min_x = valid_passes['start_x'].min()
+            seq_max_y = valid_passes['start_y'].max()
+            seq_min_y = valid_passes['start_y'].min()
+        else:
+            seq_mean_x = seq_mean_y = 52.5
+            seq_std_x = seq_std_y = 0.0
+            seq_max_x = seq_max_y = 105.0
+            seq_min_x = seq_min_y = 0.0
         
         for idx, row in sequence.iterrows():
             # 기본 좌표 정보
@@ -164,29 +186,66 @@ class PassSequenceDataset(Dataset):
             normalized_end_x = end_x / 105.0
             normalized_end_y = end_y / 68.0
             
-            # 피처 벡터 구성 (개선된 버전)
+            # 시퀀스 내 상대적 위치 (맥락 정보)
+            rel_to_mean_x = (start_x - seq_mean_x) / (seq_std_x + 1e-8)
+            rel_to_mean_y = (start_y - seq_mean_y) / (seq_std_y + 1e-8)
+            rel_to_max_x = (start_x - seq_max_x) / 105.0
+            rel_to_max_y = (start_y - seq_max_y) / 68.0
+            
+            # 경기장 영역 정보 (공격/수비/중앙)
+            attack_zone = 1.0 if start_x > 70 else (0.5 if start_x > 35 else 0.0)
+            defensive_zone = 1.0 if start_x < 35 else (0.5 if start_x < 70 else 0.0)
+            center_zone = 1.0 if 30 < start_y < 38 else 0.0
+            
+            # 패스 방향성 (전진/후진/횡)
+            forward_pass = 1.0 if (end_x - start_x) > 5 else 0.0
+            backward_pass = 1.0 if (end_x - start_x) < -5 else 0.0
+            lateral_pass = 1.0 if abs(end_x - start_x) < 5 else 0.0
+            
+            # 피처 벡터 구성 (강화된 버전 - 30개 피처)
             feature = np.array([
+                # 기본 좌표 (4)
                 normalized_start_x,
                 normalized_start_y,
                 normalized_end_x,
                 normalized_end_y,
+                # 패스 특성 (3)
                 pass_distance / 105.0,  # 정규화된 거리
                 pass_angle,
-                time_seconds / 3600.0,  # 정규화된 시간 (경기 시간 기준)
+                pass_angle / np.pi,  # 정규화된 각도
+                # 시간 정보 (2)
+                time_seconds / 3600.0,  # 정규화된 시간
                 time_delta / 10.0,  # 정규화된 시간 델타
+                # 카테고리 정보 (2)
                 result_successful,
                 is_home,
+                # 연속성 정보 (2)
                 continuity / 105.0,
                 angle_change,
-                # 추가 통계 피처
+                # 삼각함수 변환 (2)
                 np.sin(pass_angle),
                 np.cos(pass_angle),
-                start_x - 52.5,  # 중앙선 기준 상대 위치
+                # 중앙선 기준 상대 위치 (4)
+                start_x - 52.5,
                 start_y - 34.0,
                 end_x - 52.5,
                 end_y - 34.0,
-                pass_distance * np.cos(pass_angle),  # x 방향 성분
-                pass_distance * np.sin(pass_angle),  # y 방향 성분
+                # 방향 성분 (2)
+                pass_distance * np.cos(pass_angle),
+                pass_distance * np.sin(pass_angle),
+                # 시퀀스 맥락 정보 (4)
+                rel_to_mean_x,
+                rel_to_mean_y,
+                rel_to_max_x,
+                rel_to_max_y,
+                # 경기장 영역 정보 (3)
+                attack_zone,
+                defensive_zone,
+                center_zone,
+                # 패스 방향성 (3)
+                forward_pass,
+                backward_pass,
+                lateral_pass,
             ], dtype=np.float32)
             
             features_list.append(feature)

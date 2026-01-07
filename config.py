@@ -38,22 +38,23 @@ class ModelConfig:
     SUBMISSION_DIR = SUBMISSION_DIR
     LOG_DIR = LOG_DIR
     
-    # 시퀀스 모델 설정
-    hidden_dim = 256
-    num_layers = 3
-    dropout = 0.3
+    # 시퀀스 모델 설정 (성능 향상을 위해 증가)
+    hidden_dim = 512  # 256 -> 512로 증가
+    num_layers = 4  # 3 -> 4로 증가
+    dropout = 0.2  # 0.3 -> 0.2로 감소 (더 큰 모델에 맞춤)
     bidirectional = True
     
     # 입력 피처 설정
-    feature_dim = 20  # 피처 차원 (추후 조정)
+    feature_dim = 30  # 피처 강화로 30개로 증가
     output_dim = 2  # end_x, end_y
     
-    # 학습 설정
-    batch_size = 32
-    learning_rate = 0.001
-    num_epochs = 50
-    early_stopping_patience = 10
+    # 학습 설정 (성능 향상)
+    batch_size = 64  # 32 -> 64로 증가 (더 안정적인 학습)
+    learning_rate = 0.0005  # 0.001 -> 0.0005로 감소 (더 안정적인 학습)
+    num_epochs = 100  # 50 -> 100으로 증가
+    early_stopping_patience = 15  # 10 -> 15로 증가
     max_grad_norm = 1.0  # Gradient clipping
+    warmup_epochs = 5  # Learning rate warmup
     
     # 시퀀스 길이
     max_sequence_length = 100  # 최대 시퀀스 길이
