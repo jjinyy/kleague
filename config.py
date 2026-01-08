@@ -45,7 +45,7 @@ class ModelConfig:
     bidirectional = True
     
     # 입력 피처 설정
-    feature_dim = 30  # 피처 강화로 30개로 증가
+    feature_dim = 34  # 실제 피처 개수: 34개
     output_dim = 2  # end_x, end_y
     
     # 학습 설정 (성능 향상)

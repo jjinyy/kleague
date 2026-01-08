@@ -55,8 +55,23 @@ def main():
     print(f"모델 파라미터 수: {sum(p.numel() for p in model.parameters()):,}")
     
     # Loss 함수 및 Optimizer
-    # Huber Loss 사용 (outlier에 더 robust)
-    criterion = nn.HuberLoss(delta=1.0)  # MSE 대신 Huber Loss 사용
+    # 유클리드 거리와 직접적인 손실 함수 조합
+    class CombinedLoss(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.huber = nn.HuberLoss(delta=1.0)
+            self.mse = nn.MSELoss()
+        
+        def forward(self, pred, target):
+            # Huber Loss와 MSE의 조합 (가중 평균)
+            huber_loss = self.huber(pred, target)
+            mse_loss = self.mse(pred, target)
+            # 유클리드 거리도 포함
+            euclidean_dist = torch.sqrt(torch.sum((pred - target) ** 2, dim=1)).mean()
+            # 조합된 손실 (Huber 70%, MSE 20%, Euclidean 10%)
+            return 0.7 * huber_loss + 0.2 * mse_loss + 0.1 * euclidean_dist
+    
+    criterion = CombinedLoss()
     optimizer = optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=1e-4)
     
     # Learning rate scheduler (Cosine Annealing + ReduceLROnPlateau 조합)

@@ -15,7 +15,7 @@ class PassPredictor(nn.Module):
         self.config = config
         
         # 입력 피처 차원 (utils/data_loader.py의 _extract_features에서 정의)
-        self.input_dim = 30  # 피처 강화로 인해 30개로 증가
+        self.input_dim = 34  # 실제 피처 개수: 34개
         
         # LSTM 레이어
         self.lstm = nn.LSTM(
@@ -30,13 +30,17 @@ class PassPredictor(nn.Module):
         # LSTM 출력 차원 계산
         lstm_output_dim = config.hidden_dim * 2 if config.bidirectional else config.hidden_dim
         
-        # 어텐션 메커니즘 (선택적)
+        # 어텐션 메커니즘 (개선: 더 많은 헤드)
         self.attention = nn.MultiheadAttention(
             embed_dim=lstm_output_dim,
-            num_heads=8,
+            num_heads=16,  # 8 -> 16으로 증가
             dropout=config.dropout,
             batch_first=True
         )
+        
+        # 어텐션 후 추가 레이어 (어텐션 결과를 더 잘 활용)
+        self.attn_proj = nn.Linear(lstm_output_dim, lstm_output_dim)
+        self.attn_norm = nn.LayerNorm(lstm_output_dim)
         
         # 출력 레이어 (Residual connection과 Batch Normalization 추가)
         self.fc1 = nn.Linear(lstm_output_dim, config.hidden_dim)
@@ -105,6 +109,14 @@ class PassPredictor(nn.Module):
             key_padding_mask=attn_mask
         )
         
+        # 어텐션 결과 후처리
+        attn_out = self.attn_proj(attn_out)
+        attn_out = self.attn_norm(attn_out)
+        attn_out = F.relu(attn_out)
+        
+        # Residual connection (LSTM 출력과 어텐션 출력 결합)
+        attn_out = attn_out + lstm_out
+        
         # 마지막 타임스텝 사용 (또는 평균 풀링)
         if mask is not None:
             # 마스크된 부분을 제외하고 평균
@@ -145,7 +157,7 @@ class TransformerPassPredictor(nn.Module):
     def __init__(self, config):
         super(TransformerPassPredictor, self).__init__()
         self.config = config
-        self.input_dim = 30  # 피처 강화로 30개로 증가
+        self.input_dim = 34  # 실제 피처 개수: 34개
         
         # 입력 임베딩
         self.input_projection = nn.Linear(self.input_dim, config.hidden_dim)

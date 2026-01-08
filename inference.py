@@ -20,8 +20,7 @@ from torch.utils.data import DataLoader
 def load_model(model_path, config, device):
     """모델 로드"""
     model = PassPredictor(config).to(device)
-    # 입력 차원 업데이트
-    model.input_dim = 30  # 피처 강화로 30개
+    # 입력 차원은 모델 초기화 시 자동 설정됨
     # 또는 Transformer 모델 사용 시:
     # model = TransformerPassPredictor(config).to(device)
     

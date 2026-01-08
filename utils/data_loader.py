@@ -159,9 +159,12 @@ class PassSequenceDataset(Dataset):
             # 팀 정보
             is_home = 1 if row['is_home'] else 0
             
-            # 선수 및 액션 정보
+            # 선수 및 액션 정보 (정규화)
             player_id = row['player_id']
             action_id = row['action_id']
+            # 선수 ID를 해시하여 정규화 (선수 수가 많으므로)
+            player_id_hash = hash(str(player_id)) % 10000 / 10000.0  # 0-1 범위로 정규화
+            action_id_norm = action_id / 10000.0  # 액션 ID 정규화
             
             # 이전 패스와의 관계
             if idx > 0:
@@ -187,10 +190,13 @@ class PassSequenceDataset(Dataset):
             normalized_end_y = end_y / 68.0
             
             # 시퀀스 내 상대적 위치 (맥락 정보)
-            rel_to_mean_x = (start_x - seq_mean_x) / (seq_std_x + 1e-8)
-            rel_to_mean_y = (start_y - seq_mean_y) / (seq_std_y + 1e-8)
+            rel_to_mean_x = (start_x - seq_mean_x) / (seq_std_x + 1e-8) if seq_std_x > 0 else 0.0
+            rel_to_mean_y = (start_y - seq_mean_y) / (seq_std_y + 1e-8) if seq_std_y > 0 else 0.0
             rel_to_max_x = (start_x - seq_max_x) / 105.0
             rel_to_max_y = (start_y - seq_max_y) / 68.0
+            
+            # 시퀀스 진행률 (현재 패스가 시퀀스의 어느 위치인지)
+            sequence_progress = idx / max(len(sequence) - 1, 1)  # 0-1 범위
             
             # 경기장 영역 정보 (공격/수비/중앙)
             attack_zone = 1.0 if start_x > 70 else (0.5 if start_x > 35 else 0.0)
@@ -246,6 +252,11 @@ class PassSequenceDataset(Dataset):
                 forward_pass,
                 backward_pass,
                 lateral_pass,
+                # 선수 및 액션 정보 (2)
+                player_id_hash,
+                action_id_norm,
+                # 시퀀스 진행률 (1)
+                sequence_progress,
             ], dtype=np.float32)
             
             features_list.append(feature)
@@ -326,14 +337,19 @@ def load_test_data(config) -> pd.DataFrame:
 
 def create_data_loaders(train_df: pd.DataFrame, config, val_split=0.2):
     """데이터 로더 생성"""
-    # 학습/검증 분할
-    episodes = train_df['game_episode'].unique()
+    # 학습/검증 분할 (게임 ID 기준으로 분할하여 데이터 누수 방지)
+    # 같은 게임의 에피소드가 학습/검증에 동시에 들어가지 않도록
+    game_ids = train_df['game_id'].unique()
     np.random.seed(config.seed)
-    np.random.shuffle(episodes)
+    np.random.shuffle(game_ids)
     
-    split_idx = int(len(episodes) * (1 - val_split))
-    train_episodes = episodes[:split_idx]
-    val_episodes = episodes[split_idx:]
+    split_idx = int(len(game_ids) * (1 - val_split))
+    train_game_ids = game_ids[:split_idx]
+    val_game_ids = game_ids[split_idx:]
+    
+    # 게임 ID 기준으로 에피소드 분할
+    train_episodes = train_df[train_df['game_id'].isin(train_game_ids)]['game_episode'].unique()
+    val_episodes = train_df[train_df['game_id'].isin(val_game_ids)]['game_episode'].unique()
     
     train_data = train_df[train_df['game_episode'].isin(train_episodes)]
     val_data = train_df[train_df['game_episode'].isin(val_episodes)]
